@@ -24,7 +24,6 @@ INSTALLED_APPS = [
     "Core.apps.CoreConfig",
     "Accounts.apps.AccountsConfig",
     "storages",
-    "django_celery_results",
     "django_celery_beat",
 ]
 
@@ -154,6 +153,7 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_TIMEZONE = "Asia/Tehran"
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
+CELERY_RESULT_EXPIRES = 86400
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_BEAT_SCHEDULE = {
     "send-inactive-users-reminder-every-friday": {
