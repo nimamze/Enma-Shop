@@ -1,10 +1,14 @@
 from pathlib import Path
+from dotenv import load_dotenv
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # -> Enma-Shop\Gateway
 
+load_dotenv(BASE_DIR / ".env")
+
 SECRET_KEY = "django-insecure-o(4r##ru5y@mz+!z842##!6-p*x2u93cob$mrfgefz2*)%pu=8"
 
-DEBUG = True
+DEBUG = os.getenv("DEBUG", False)
 
 ALLOWED_HOSTS = []
 
@@ -51,8 +55,12 @@ WSGI_APPLICATION = "CentralManagement.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DATA_BASE_NAME"),
+        "USER": os.getenv("DATA_BASE_USER_NAME"),
+        "PASSWORD": os.getenv("DATA_BASE_PASSWORD"),
+        "HOST": os.getenv("DATA_BASE_HOST"),
+        "PORT": "5432",
     }
 }
 
