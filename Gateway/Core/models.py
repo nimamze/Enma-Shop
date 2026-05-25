@@ -28,7 +28,7 @@ class SoftDeleteManager(models.Manager):
 class SoftDeleteModel(BaseModel):
     is_deleted = models.BooleanField(default=False)
     objects = SoftDeleteManager()
-    all_object = models.Manager()
+    all_objects = models.Manager()
 
     def delete(self, using=None, keep_parents=False):
         self.is_deleted = True
