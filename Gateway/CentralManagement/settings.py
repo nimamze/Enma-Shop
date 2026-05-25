@@ -1,5 +1,6 @@
 from pathlib import Path
 from dotenv import load_dotenv
+from celery.schedules import crontab
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # -> Enma-Shop\Gateway
@@ -23,6 +24,8 @@ INSTALLED_APPS = [
     "Core.apps.CoreConfig",
     "Accounts.apps.AccountsConfig",
     "storages",
+    "django_celery_results",
+    "django_celery_beat",
 ]
 
 MIDDLEWARE = [
@@ -143,3 +146,27 @@ CACHES = {
         },
     }
 }
+
+
+CELERY_ACCEPT_CONTENT = ["application/json"]
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TASK_SERIALIZER = "json"
+CELERY_TIMEZONE = "Asia/Tehran"
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+CELERY_BEAT_SCHEDULE = {
+    "send-inactive-users-reminder-every-friday": {
+        "task": "Core.tasks.send_inactive_users_reminder_task",
+        "schedule": crontab(minute=0, hour=3, day_of_week=5),
+    },
+}
+
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
