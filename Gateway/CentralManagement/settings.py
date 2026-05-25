@@ -39,7 +39,7 @@ ROOT_URLCONF = "CentralManagement.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -88,3 +88,5 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+
+AUTH_USER_MODEL = "Accounts.User"
