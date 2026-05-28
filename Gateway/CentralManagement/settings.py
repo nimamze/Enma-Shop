@@ -2,6 +2,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from celery.schedules import crontab
 import os
+from datetime import timedelta
+from kavenegar import KavenegarAPI
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # -> Enma-Shop\Gateway
 
@@ -25,6 +27,9 @@ INSTALLED_APPS = [
     "Accounts.apps.AccountsConfig",
     "storages",
     "django_celery_beat",
+    "rest_framework_simplejwt.token_blacklist",
+    "rest_framework",
+    "drf_yasg",
 ]
 
 MIDDLEWARE = [
@@ -169,13 +174,57 @@ CELERY_BEAT_SCHEDULE = {
         "task": "Core.tasks.send_inactive_users_reminder_task",
         "schedule": crontab(minute=0, hour=3, day_of_week=5),
     },
+    "cleanup-expired-jwt-tokens-every-night": {
+        "task": "Core.tasks.cleanup_expired_jwt_tokens",
+        "schedule": crontab(hour=2, minute=0),
+    },
 }
 
-
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": False,
+}
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "Accounts.utils.authentication.RedisBlacklistJWTAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {"anon": "50/day", "user": "100/day"},
+}
+
+SWAGGER_SETTINGS = {
+    "SECURITY_DEFINITIONS": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT Authorization header using the Bearer scheme. Example: 'Bearer <token>'",
+        },
+    }
+}
+SMS_API = KavenegarAPI(os.getenv("KAVENEGAR_API_KEY"))
+
+USER_CHANGE_PASSWORD_TIME_LIMIT = os.getenv("USER_CHANGE_PASSWORD_TIME_LIMIT")
+USER_CHANGE_PASSWORD_LIMIT = os.getenv("USER_CHANGE_PASSWORD_LIMIT")
+USER_SELLER_TIME_LIMIT = os.getenv("USER_SELLER_TIME_LIMIT")
+USER_SELLER_LIMIT = os.getenv("USER_SELLER_LIMIT")
+USER_OTP_CODE_LIMIT_TIME = os.getenv("USER_OTP_CODE_LIMIT_TIME")
+USER_OTP_CODE_LIMIT = os.getenv("USER_OTP_CODE_LIMIT")
+USER_OTP_CODE_TIME = os.getenv("USER_OTP_CODE_TIME")
