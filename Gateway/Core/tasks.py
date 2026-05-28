@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.utils import timezone
 from datetime import timedelta
+from django.core.management import call_command
 
 User = get_user_model()
 
@@ -22,6 +23,20 @@ def send_email_task(self, email_address, message):
         raise self.retry(exc=exc)
 
 
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def send_sms(self, phone, message):
+    try:
+        params = {
+            "sender": "2000660110",
+            "receptor": f"{phone}",
+            "message": f"{message}",
+        }
+        settings.SMS_API.sms_send(params)
+
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
 @shared_task
 def send_inactive_users_reminder_task():
     cutoff = timezone.now() - timedelta(days=30)
@@ -36,3 +51,8 @@ def send_inactive_users_reminder_task():
         send_email_task.delay(user.email, message)  # type: ignore
         sent_count += 1
     return sent_count
+
+
+@shared_task
+def cleanup_expired_jwt_tokens():
+    call_command("flushexpiredtokens")
