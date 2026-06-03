@@ -1,0 +1,85 @@
+name: enma-shop
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: enma-shop-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: enma_shop
+      POSTGRES_USER: nimamze
+      POSTGRES_PASSWORD: emmawatson2181
+    ports:
+      - "5433:5432"
+    volumes:
+      - enma_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nimamze -d enma_shop"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: enma-shop-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "emmawatson2181"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - enma_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "emmawatson2181", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: enma-shop-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: nimamze
+      RABBITMQ_DEFAULT_PASS: emmawatson2181
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - enma_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  gateway:
+    build:
+      context: ./Gateway
+    container_name: enma-shop-gateway
+    restart: unless-stopped
+    env_file:
+      - ./Gateway/.env
+    ports:
+      - "8018:8008"
+
+  celery-worker:
+    build:
+      context: ./Gateway
+    container_name: enma-shop-celery-worker
+    restart: unless-stopped
+    command: celery -A celery worker -l info
+    env_file:
+      - ./Gateway/.env
+
+  celery-beat:
+    build:
+      context: ./Gateway
+    container_name: enma-shop-celery-beat
+    restart: unless-stopped
+    command: celery -A celery beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - ./Gateway/.env
+volumes:
+  enma_postgres_data:
+  enma_redis_data:
+  enma_rabbitmq_data:

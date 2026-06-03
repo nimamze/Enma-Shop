@@ -120,7 +120,7 @@ if DEBUG:
 else:
     custom_domain = os.getenv(
         "ARVAN_S3_CUSTOM_DOMAIN",
-        f"{os.getenv('ARVAN_S3_BUCKET_NAME')}.s3.{os.getenv('ARVAN_S3_REGION_NAME')}.arvanstorage.ir",
+        f"{os.getenv('ARVAN_S3_BUCKET_NAME')}.s3.{'ir-thr-at1'}.arvanstorage.ir",
     )
     STORAGES = {
         "default": {
@@ -129,8 +129,8 @@ else:
                 "access_key": os.getenv("ARVAN_S3_ACCESS_KEY_ID"),
                 "secret_key": os.getenv("ARVAN_S3_SECRET_ACCESS_KEY"),
                 "bucket_name": os.getenv("ARVAN_S3_BUCKET_NAME"),
-                "region_name": os.getenv("ARVAN_S3_REGION_NAME"),
-                "endpoint_url": os.getenv("ARVAN_S3_ENDPOINT_URL"),
+                "region_name": "ir-thr-at1",
+                "endpoint_url": "https://s3.ir-thr-at1.arvanstorage.ir",
                 "default_acl": None,
                 "querystring_auth": False,
                 "file_overwrite": False,
