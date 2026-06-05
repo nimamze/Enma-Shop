@@ -1,34 +1,44 @@
 from django.conf import settings
 from django.db import models
-from Core.models import BaseModel
+from Core.models import SoftDeleteModel
 
 User = settings.AUTH_USER_MODEL
 
 
-class AddressUser(BaseModel):
+class Address(SoftDeleteModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="addresses")
-    title = models.CharField(max_length=100, blank=True, null=True)
-    latitude = models.DecimalField(
-        max_digits=10, decimal_places=7, blank=True, null=True
-    )
-    longitude = models.DecimalField(
-        max_digits=10, decimal_places=7, blank=True, null=True
-    )
-    province = models.CharField(max_length=255, blank=True)
-    city = models.CharField(max_length=255, blank=True)
-    neighbourhood = models.CharField(max_length=255, blank=True)
-    street = models.CharField(max_length=255, blank=True)
+    title = models.CharField(max_length=100, blank=True)
+    latitude = models.DecimalField(max_digits=10, decimal_places=7)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7)
+    province = models.CharField(max_length=255)
+    city = models.CharField(max_length=255)
+    street = models.CharField(max_length=255)
     alley = models.CharField(max_length=255, blank=True, null=True)
-    plaque = models.CharField(max_length=20)
+    number = models.CharField(max_length=20)
     unit = models.CharField(max_length=20, blank=True, null=True)
-    postal_code = models.CharField(max_length=10, blank=True, null=True)
+    postal_code = models.CharField(max_length=10)
+    full_address = models.TextField(blank=True, null=True)
     is_default = models.BooleanField(default=False)
 
     class Meta:
         indexes = [
-            models.Index(fields=["user", "is_default"]),
-            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["latitude", "longitude"]),
         ]
 
     def __str__(self):
-        return f"{self.province} - {self.city} for user ({self.user.phone})"
+        return f"{self.full_address} ({self.user.phone})"
+
+    def build_full_address(self):
+        parts = [
+            self.province,
+            self.city,
+            self.street,
+            self.alley,
+            f"پلاک {self.number}" if self.number else None,
+            f"واحد {self.unit}" if self.unit else None,
+        ]
+        return "، ".join([p for p in parts if p])
+
+    def save(self, *args, **kwargs):
+        self.full_address = self.build_full_address()
+        super().save(*args, **kwargs)

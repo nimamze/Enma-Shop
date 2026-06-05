@@ -1,11 +1,11 @@
 from django.contrib import admin
-from Addresses.models import AddressUser
+from Addresses.models import Address
 
 
-@admin.register(AddressUser)
-class AddressUserAdmin(admin.ModelAdmin):
+@admin.register(Address)
+class AddressAdmin(admin.ModelAdmin):
     list_display = (
-        "user",
+        "user__phone",
         "title",
         "province",
         "city",
@@ -13,7 +13,7 @@ class AddressUserAdmin(admin.ModelAdmin):
         "plaque",
         "is_default",
     )
-    list_filter = "is_default"
+    list_filter = ("is_default",)
     search_fields = (
         "user__phone",
         "user__first_name",
@@ -24,18 +24,10 @@ class AddressUserAdmin(admin.ModelAdmin):
         "plaque",
         "postal_code",
     )
-    ordering = ("-province",)
+    ordering = ("-created_at",)
+    list_editable = ("is_default",)
     fieldsets = (
-        (
-            "User",
-            {
-                "fields": (
-                    "user",
-                    "title",
-                    "is_default",
-                )
-            },
-        ),
+        ("User", {"fields": ("user", "title", "is_default")}),
         (
             "Location",
             {
@@ -54,3 +46,4 @@ class AddressUserAdmin(admin.ModelAdmin):
             },
         ),
     )
+    readonly_fields = ("created_at", "updated_at")

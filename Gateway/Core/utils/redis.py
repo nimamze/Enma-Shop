@@ -39,6 +39,13 @@ USER_OTP_CODE_TIME = int(settings.USER_OTP_CODE_TIME)
 
 
 # ============================================================================
+# Map Cache Keys
+# ============================================================================
+MAP_REVERSE_CACHE_KEY = "map_reverse_{lat}_{lon}"
+MAP_FORWARD_CACHE_KEY = "map_forward_{address}"
+
+
+# ============================================================================
 # CACHE OPERATIONS
 # ============================================================================
 def set_cache(key: str, value: Any, timeout: int | None = None) -> None:

@@ -1,8 +1,0 @@
-"""
-Geographic constants for Iran.
-"""
-
-IRAN_MIN_LATITUDE = 24.8
-IRAN_MAX_LATITUDE = 37.7
-IRAN_MIN_LONGITUDE = 44.0
-IRAN_MAX_LONGITUDE = 60.5

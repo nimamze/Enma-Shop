@@ -1,10 +1,9 @@
 from rest_framework import serializers
-from Addresses.constants import (
-    IRAN_MIN_LATITUDE,
-    IRAN_MAX_LATITUDE,
-    IRAN_MIN_LONGITUDE,
-    IRAN_MAX_LONGITUDE,
-)
+IRAN_MIN_LATITUDE = 24.8
+IRAN_MAX_LATITUDE = 37.7
+IRAN_MIN_LONGITUDE = 44.0
+IRAN_MAX_LONGITUDE = 60.5
+
 
 
 def validate_iran_coordinates(latitude: float, longitude: float) -> None:
