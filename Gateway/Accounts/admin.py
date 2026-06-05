@@ -1,14 +1,14 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from Accounts.models import User
+from Accounts.models import UserModel
 from Accounts.utils.forms import CustomUserCreationForm, CustomUserChangeForm
 
 
-@admin.register(User)
+@admin.register(UserModel)
 class CustomUserAdmin(UserAdmin):
     add_form = CustomUserCreationForm
     form = CustomUserChangeForm
-    model = User
+    model = UserModel
     list_display = (
         "phone",
         "get_user_fullname",

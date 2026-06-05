@@ -38,7 +38,7 @@ class UserManager(BaseUserManager):
         return self.create_user(phone, password, email, **kwargs)
 
 
-class User(SoftDeleteModel, AbstractUser):
+class UserModel(SoftDeleteModel, AbstractUser):
     username = None
     phone = models.CharField(max_length=16, unique=True)
     email = models.EmailField(blank=True, null=True)
