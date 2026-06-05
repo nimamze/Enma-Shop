@@ -9,7 +9,6 @@ from Accounts.serializers import (
     UserForgotPasswordSerializer,
     UserOtpSendSerializer,
 )
-
 from django.contrib.auth import get_user_model
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
@@ -17,9 +16,8 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from Accounts.utils.jwt_blacklist import blacklist_access_token
 from django.db import transaction
 from random import randint
-from django.core.cache import cache
 from Core.tasks import send_sms
-from Accounts.utils.redis import (
+from Core.utils.redis import (
     USER_CHANGE_PASSWORD_LIMIT_KEY,
     USER_CHANGE_PASSWORD_TIME_LIMIT,
     USER_CHANGE_PASSWORD_LIMIT,
@@ -33,6 +31,11 @@ from Accounts.utils.redis import (
     USER_OTP_CODE_LIMIT,
     USER_OTP_PREVIOUS_CODE_KEY,
     USER_OTP_CODE_TIME,
+    set_cache,
+    get_cache,
+    delete_cache,
+    increment_counter,
+    get_counter,
 )
 
 User = get_user_model()
@@ -72,20 +75,20 @@ class UserSignUpView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         phone = data.get("phone")  # type: ignore
-        user_sign_up_otp_validation = cache.get(
+        user_sign_up_otp_validation = get_cache(
             f"{phone}{USER_SIGN_UP_OTP_VALIDATION_KEY}"
         )
         if user_sign_up_otp_validation:
             password1 = data.get("password1")  # type: ignore
             try:
                 with transaction.atomic():
-                    User.objects.create_user(phone=phone, password=password1)
+                    User.objects.create_user(phone=phone, password=password1)  # type: ignore
             except Exception as exc:
                 return Response(
                     {"detail": str(exc)},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            cache.delete(f"{phone}{USER_SIGN_UP_OTP_VALIDATION_KEY}")
+            delete_cache(f"{phone}{USER_SIGN_UP_OTP_VALIDATION_KEY}")
             return Response(
                 {"detail": "User created successfully."},
                 status=status.HTTP_201_CREATED,
@@ -125,20 +128,22 @@ class UserOtpSendView(APIView):
         serializer.is_valid(raise_exception=True)
         phone = serializer.validated_data.get("phone")  # type: ignore
         limit_key = f"{phone}{USER_OTP_CODE_LIMIT_KEY}"
-        current_attempts = cache.get(limit_key, 0)
+        current_attempts = get_counter(limit_key)
         if current_attempts >= USER_OTP_CODE_LIMIT:
             return Response(
                 {"detail": "OTP request limit exceeded. Please try again later."},
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
-        old_otp_code = cache.get(f"{phone}{USER_OTP_PREVIOUS_CODE_KEY}")
+        old_otp_code = get_cache(f"{phone}{USER_OTP_PREVIOUS_CODE_KEY}")
         if old_otp_code:
             return Response(
-                {"detail": "An OTP code has already been sent. Please wait before requesting another one."},
+                {
+                    "detail": "An OTP code has already been sent. Please wait before requesting another one."
+                },
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
         new_otp_code = randint(1_000_000_000, 9_999_999_999)
-        cache.set(
+        set_cache(
             f"{phone}{USER_OTP_PREVIOUS_CODE_KEY}",
             new_otp_code,
             USER_OTP_CODE_TIME,
@@ -146,7 +151,7 @@ class UserOtpSendView(APIView):
         send_sms.delay(
             phone=str(phone), message=f"Enma Shop\nYour code is {new_otp_code}"
         )  # type: ignore
-        cache.set(limit_key, current_attempts + 1, USER_OTP_CODE_LIMIT_TIME)
+        increment_counter(limit_key, 1, USER_OTP_CODE_LIMIT_TIME)
         return Response(
             {"detail": "OTP code sent successfully."}, status=status.HTTP_200_OK
         )
@@ -163,15 +168,15 @@ class UserOtpValidationView(APIView):
         phone = data.get("phone")  # type: ignore
         action = data.get("action")  # type: ignore
         user_otp = data.get("otp")  # type: ignore
-        old_otp = cache.get(f"{phone}{USER_OTP_PREVIOUS_CODE_KEY}")
+        old_otp = get_cache(f"{phone}{USER_OTP_PREVIOUS_CODE_KEY}")
         if old_otp:
             if user_otp == old_otp:
                 if action == "SIGN_UP":
                     key = f"{phone}{USER_SIGN_UP_OTP_VALIDATION_KEY}"
                 else:
                     key = f"{phone}{USER_CHANGE_PASSWORD_OTP_VALIDATION_KEY}"
-                cache.set(key, 1, USER_OTP_CODE_TIME)
-                cache.delete(f"{phone}{USER_OTP_PREVIOUS_CODE_KEY}")
+                set_cache(key, 1, USER_OTP_CODE_TIME)
+                delete_cache(f"{phone}{USER_OTP_PREVIOUS_CODE_KEY}")
                 return Response(
                     {"detail": "OTP code verified successfully."},
                     status=status.HTTP_200_OK,
@@ -190,10 +195,12 @@ class UserSellerView(APIView):
     def post(self, request):
         user = request.user
         limit_key = f"{user.phone}{USER_SELLER_LIMIT_KEY}"
-        current_attempts = cache.get(limit_key, 0)
+        current_attempts = get_counter(limit_key)
         if current_attempts >= USER_SELLER_LIMIT:
             return Response(
-                {"detail": "Seller status change limit exceeded. Please try again later."},
+                {
+                    "detail": "Seller status change limit exceeded. Please try again later."
+                },
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
         serializer = UserSellerSerializer(data=request.data)
@@ -208,7 +215,7 @@ class UserSellerView(APIView):
             with transaction.atomic():
                 user.is_seller = True
                 user.save()
-                cache.set(limit_key, current_attempts + 1, USER_SELLER_TIME_LIMIT)
+                increment_counter(limit_key, 1, USER_SELLER_TIME_LIMIT)
                 return Response(
                     {"detail": "Seller status activated successfully."},
                     status=status.HTTP_200_OK,
@@ -222,7 +229,7 @@ class UserSellerView(APIView):
             with transaction.atomic():
                 user.is_seller = False
                 user.save()
-                cache.set(limit_key, current_attempts + 1, USER_SELLER_TIME_LIMIT)
+                increment_counter(limit_key, 1, USER_SELLER_TIME_LIMIT)
                 return Response(
                     {"detail": "Seller status removed successfully."},
                     status=status.HTTP_200_OK,
@@ -244,13 +251,13 @@ class UserForgotPasswordView(APIView):
         phone = data.get("phone")  # type: ignore
 
         limit_key = f"{phone}{USER_CHANGE_PASSWORD_LIMIT_KEY}"
-        current_attempts = cache.get(limit_key, 0)
+        current_attempts = get_counter(limit_key)
         if current_attempts >= USER_CHANGE_PASSWORD_LIMIT:
             return Response(
                 {"detail": "Password reset limit exceeded. Please try again later."},
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
-        user_change_password_otp_validation = cache.get(
+        user_change_password_otp_validation = get_cache(
             f"{phone}{USER_CHANGE_PASSWORD_OTP_VALIDATION_KEY}"
         )
         if user_change_password_otp_validation:
@@ -263,10 +270,10 @@ class UserForgotPasswordView(APIView):
             with transaction.atomic():
                 user.set_password(password)
                 user.save()
-                cache.delete(f"{phone}{USER_CHANGE_PASSWORD_OTP_VALIDATION_KEY}")
-                cache.set(
+                delete_cache(f"{phone}{USER_CHANGE_PASSWORD_OTP_VALIDATION_KEY}")
+                increment_counter(
                     limit_key,
-                    current_attempts + 1,
+                    1,
                     USER_CHANGE_PASSWORD_TIME_LIMIT,
                 )
             return Response(

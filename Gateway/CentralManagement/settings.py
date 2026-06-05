@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "Core.apps.CoreConfig",
     "Accounts.apps.AccountsConfig",
+    "Addresses.apps.AddressesConfig",
     "storages",
     "django_celery_beat",
     "rest_framework_simplejwt.token_blacklist",
@@ -220,6 +221,9 @@ SWAGGER_SETTINGS = {
     }
 }
 SMS_API = KavenegarAPI(os.getenv("KAVENEGAR_API_KEY"))
+
+MAP_API_KEY = os.getenv("MAP_API_KEY")
+MAP_REVERSE_URL = "https://map.ir/reverse"
 
 USER_CHANGE_PASSWORD_TIME_LIMIT = os.getenv("USER_CHANGE_PASSWORD_TIME_LIMIT")
 USER_CHANGE_PASSWORD_LIMIT = os.getenv("USER_CHANGE_PASSWORD_LIMIT")
