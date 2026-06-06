@@ -55,6 +55,5 @@ class ShopView(APIView):
             return Response(
                 {"detail": "Shop not found."}, status=status.HTTP_404_NOT_FOUND
             )
-        shop.is_deleted = True
-        shop.save()
+        shop.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

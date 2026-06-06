@@ -1,6 +1,7 @@
 from django.db import models
 from Core.models import SoftDeleteModel
 from django.conf import settings
+from Core.utils.file_cleanup import delete_file
 
 User = settings.AUTH_USER_MODEL
 
@@ -23,3 +24,8 @@ class ShopModel(SoftDeleteModel):
 
     def __str__(self):
         return f"{self.name} for user {self.user.username}"
+
+    def delete(self, using=None, keep_parents=False):
+        delete_file(self.logo)
+        delete_file(self.image)
+        super().delete(using=using, keep_parents=keep_parents)

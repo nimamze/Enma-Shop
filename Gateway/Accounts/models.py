@@ -4,6 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.db import models
 from Core.models import SoftDeleteModel
 from Core.utils.phone_number_validate import validate_iranian_phone
+from Core.utils.file_cleanup import delete_file
 
 
 class UserManager(BaseUserManager):
@@ -59,6 +60,10 @@ class UserModel(SoftDeleteModel, AbstractUser):
     def save(self, *args, **kwargs):
         self.clean_phone()
         super().save(*args, **kwargs)
+
+    def delete(self, using=None, keep_parents=False):
+        delete_file(self.image)
+        super().delete(using=using, keep_parents=keep_parents)
 
     def __str__(self):
         return self.get_full_name() or self.phone
