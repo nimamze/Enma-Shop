@@ -36,7 +36,6 @@ class AddressAdmin(admin.ModelAdmin):
                     "longitude",
                     "province",
                     "city",
-                    "neighbourhood",
                     "street",
                     "alley",
                     "plaque",

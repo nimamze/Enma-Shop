@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "Core.apps.CoreConfig",
     "Accounts.apps.AccountsConfig",
     "Addresses.apps.AddressesConfig",
+    "Shops.apps.ShopsConfig",
     "storages",
     "django_celery_beat",
     "rest_framework_simplejwt.token_blacklist",

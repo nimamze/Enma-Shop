@@ -21,9 +21,6 @@ class TextToCoordinatesSerializer(serializers.Serializer):
 class ReverseGeocodeResponseSerializer(serializers.Serializer):
     province = serializers.CharField(max_length=255, allow_blank=True)
     city = serializers.CharField(max_length=255, allow_blank=True)
-    neighbourhood = serializers.CharField(
-        max_length=255, allow_blank=True, required=False
-    )
     street = serializers.CharField(max_length=255, allow_blank=True)
     postal_code = serializers.CharField(max_length=10, allow_blank=True, required=False)
     full_address = serializers.CharField(allow_blank=True, required=False)
@@ -44,7 +41,6 @@ class AddressSerializer(serializers.ModelSerializer):
             "longitude",
             "province",
             "city",
-            "neighbourhood",
             "street",
             "alley",
             "number",

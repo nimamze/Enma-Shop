@@ -36,7 +36,6 @@ class CoordinatesToTextView(APIView):
         response_data = {
             "province": result.get("province") or "",
             "city": result.get("city") or "",
-            "neighbourhood": result.get("neighbourhood") or "",
             "street": result.get("street") or "",
             "postal_code": result.get("postal_code") or "",
             "full_address": result.get("full_address") or "",
@@ -78,9 +77,6 @@ class CoordinatesToTextView(APIView):
             "address.county",
             "address.district",
         )
-        neighbourhood = extract_field(
-            payload, "neighbourhood", "address.neighbourhood", "neighborhood"
-        )
         street = extract_field(
             payload, "route_name", "street", "address.street", "address.road"
         )
@@ -98,7 +94,6 @@ class CoordinatesToTextView(APIView):
             "ok": True,
             "province": province,
             "city": city,
-            "neighbourhood": neighbourhood,
             "street": street,
             "postal_code": postal_code,
             "full_address": full_address,
