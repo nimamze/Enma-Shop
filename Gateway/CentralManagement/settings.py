@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "Accounts.apps.AccountsConfig",
     "Addresses.apps.AddressesConfig",
     "Shops.apps.ShopsConfig",
+    "Products.apps.ProductsConfig",
     "storages",
     "django_celery_beat",
     "rest_framework_simplejwt.token_blacklist",
@@ -221,6 +222,9 @@ SWAGGER_SETTINGS = {
         },
     }
 }
+
+ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST")
+
 SMS_API = KavenegarAPI(os.getenv("KAVENEGAR_API_KEY"))
 
 MAP_API_KEY = os.getenv("MAP_API_KEY")

@@ -34,23 +34,27 @@ services:
       timeout: 5s
       retries: 5
 
-  rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: enma-shop-rabbitmq
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.3
+    container_name: enma-shop-elasticsearch
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: nimamze
-      RABBITMQ_DEFAULT_PASS: emmawatson2181
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
     ports:
-      - "5673:5672"
-      - "15673:15672"
+      - "9200:9200"
     volumes:
-      - enma_rabbitmq_data:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
+      - enma_elasticsearch_data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.17.3
+    container_name: enma-shop-kibana
+    restart: unless-stopped
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
 
   gateway:
     build:
@@ -79,7 +83,8 @@ services:
     command: celery -A celery beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file:
       - ./Gateway/.env
+
 volumes:
   enma_postgres_data:
   enma_redis_data:
-  enma_rabbitmq_data:
+  enma_elasticsearch_data:
