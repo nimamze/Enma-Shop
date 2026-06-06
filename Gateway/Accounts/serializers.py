@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from Accounts.utils.phone_number_validate import validate_iranian_phone
+from Core.utils.phone_number_validate import validate_iranian_phone
 
 User = get_user_model()
 
@@ -44,7 +44,8 @@ class UserSignUpSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["email", "first_name", "last_name", "image"]
+        fields = ["id", "email", "first_name", "last_name", "image"]
+        read_only_fields = ["id"]
 
 
 class UserSellerSerializer(serializers.Serializer):

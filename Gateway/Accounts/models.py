@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.password_validation import validate_password
 from django.db import models
 from Core.models import SoftDeleteModel
-from Accounts.utils.phone_number_validate import validate_iranian_phone
+from Core.utils.phone_number_validate import validate_iranian_phone
 
 
 class UserManager(BaseUserManager):
