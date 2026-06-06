@@ -14,6 +14,8 @@ from Products.serializers import (
     ProductImageSerializer,
     ProductVideoSerializer,
 )
+from Core.utils.elasticsearch.client import es
+from Core.utils.elasticsearch.indexes import PRODUCTS_INDEX
 
 
 class CategoryView(APIView):
@@ -228,3 +230,82 @@ class ProductVideoView(APIView):
             )
         product_video.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ProductSearchView(APIView):
+    def get(self, request):
+        q = request.query_params.get("q")
+        min_price = request.query_params.get("min_price")
+        max_price = request.query_params.get("max_price")
+        category_id = request.query_params.get("category")
+        shop_id = request.query_params.get("shop")
+        in_stock = request.query_params.get("in_stock")
+        page = int(request.query_params.get("page", 1))
+        page_size = int(request.query_params.get("page_size", 20))
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 20
+        if page_size > 100:
+            page_size = 100
+        must = []
+        filters = [
+            {"term": {"is_active": True}},
+        ]
+        if q:
+            must.append(
+                {
+                    "multi_match": {
+                        "query": q,
+                        "fields": [
+                            "name^3",
+                            "description",
+                            "shop_name",
+                            "category_name",
+                        ],
+                        "fuzziness": "AUTO",
+                    }
+                }
+            )
+        else:
+            must.append({"match_all": {}})
+        price_range = {}
+        if min_price:
+            price_range["gte"] = int(min_price)
+        if max_price:
+            price_range["lte"] = int(max_price)
+        if price_range:
+            filters.append({"range": {"price": price_range}}) # type: ignore
+        if category_id:
+            filters.append({"term": {"category_id": int(category_id)}}) # type: ignore
+        if shop_id:
+            filters.append({"term": {"shop_id": int(shop_id)}}) # type: ignore
+        if in_stock == "true":
+            filters.append({"range": {"stock": {"gt": 0}}}) # type: ignore
+        query = {"bool": {"must": must, "filter": filters}}
+        from_ = (page - 1) * page_size
+        result = es.search(
+            index=PRODUCTS_INDEX,
+            query=query,
+            from_=from_,
+            size=page_size,
+            sort=[
+                {"_score": {"order": "desc"}},
+                {"created_at": {"order": "desc"}},
+            ],
+        )
+        hits = result["hits"]["hits"]
+        total = result["hits"]["total"]["value"]
+        data = {
+            "count": total,
+            "page": page,
+            "page_size": page_size,
+            "results": [
+                {
+                    **hit["_source"],
+                    "score": hit["_score"],
+                }
+                for hit in hits
+            ],
+        }
+        return Response(data, status=status.HTTP_200_OK)
