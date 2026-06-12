@@ -15,6 +15,14 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
+    def validate_image(self, value):
+        content_type = getattr(value, "content_type", "")
+        if not content_type.startswith("image/"):
+            raise serializers.ValidationError("Only image files are allowed.")
+        if value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("Image size must be 5 MB or less.")
+        return value
+
     class Meta:
         model = ProductImageModel
         fields = ["id", "image", "order", "created_at", "updated_at"]
@@ -22,6 +30,14 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
 
 class ProductVideoSerializer(serializers.ModelSerializer):
+    def validate_video(self, value):
+        content_type = getattr(value, "content_type", "")
+        if not content_type.startswith("video/"):
+            raise serializers.ValidationError("Only video files are allowed.")
+        if value.size > 100 * 1024 * 1024:
+            raise serializers.ValidationError("Video size must be 100 MB or less.")
+        return value
+
     class Meta:
         model = ProductVideoModel
         fields = ["id", "video", "order", "created_at", "updated_at"]

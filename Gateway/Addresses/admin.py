@@ -5,12 +5,12 @@ from Addresses.models import Address
 @admin.register(Address)
 class AddressAdmin(admin.ModelAdmin):
     list_display = (
-        "user__phone",
+        "user_phone",
         "title",
         "province",
         "city",
         "street",
-        "plaque",
+        "number",
         "is_default",
     )
     list_filter = ("is_default",)
@@ -21,7 +21,7 @@ class AddressAdmin(admin.ModelAdmin):
         "province",
         "city",
         "street",
-        "plaque",
+        "number",
         "postal_code",
     )
     ordering = ("-created_at",)
@@ -38,7 +38,7 @@ class AddressAdmin(admin.ModelAdmin):
                     "city",
                     "street",
                     "alley",
-                    "plaque",
+                    "number",
                     "unit",
                     "postal_code",
                 )
@@ -46,3 +46,7 @@ class AddressAdmin(admin.ModelAdmin):
         ),
     )
     readonly_fields = ("created_at", "updated_at")
+
+    @admin.display(description="User Phone")
+    def user_phone(self, obj):
+        return obj.user.phone

@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.exceptions import NotFound
+from django.contrib.auth.password_validation import validate_password
 from Accounts.serializers import (
     UserOtpValidationSerializer,
     UserSignUpSerializer,
@@ -268,6 +269,7 @@ class UserForgotPasswordView(APIView):
 
             password = data.get("password1")  # type: ignore
             with transaction.atomic():
+                validate_password(password, user=user)
                 user.set_password(password)
                 user.save()
                 delete_cache(f"{phone}{USER_CHANGE_PASSWORD_OTP_VALIDATION_KEY}")

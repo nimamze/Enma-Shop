@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+
 from Core.models import SoftDeleteModel
 
 User = settings.AUTH_USER_MODEL
@@ -34,10 +35,10 @@ class Address(SoftDeleteModel):
             self.city,
             self.street,
             self.alley,
-            f"پلاک {self.number}" if self.number else None,
-            f"واحد {self.unit}" if self.unit else None,
+            f"\u067e\u0644\u0627\u06a9 {self.number}" if self.number else None,
+            f"\u0648\u0627\u062d\u062f {self.unit}" if self.unit else None,
         ]
-        return "، ".join([p for p in parts if p])
+        return "\u060c ".join([p for p in parts if p])
 
     def save(self, *args, **kwargs):
         self.full_address = self.build_full_address()

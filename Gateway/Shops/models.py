@@ -52,6 +52,16 @@ class ShopImageModel(SoftDeleteModel):
     image = models.ImageField(upload_to="shops/images/gallery/")
     order = models.PositiveIntegerField(default=0)
 
+    def save(self, *args, **kwargs):
+        if self.pk:
+            try:
+                old_image = ShopImageModel.all_objects.get(pk=self.pk)
+                if old_image.image and old_image.image != self.image:
+                    delete_file(old_image.image)
+            except ShopImageModel.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
+
     def delete(self, using=None, keep_parents=False):
         delete_file(self.image)
         super().delete(using=using, keep_parents=keep_parents)
@@ -67,6 +77,16 @@ class ShopVideoModel(SoftDeleteModel):
     shop = models.ForeignKey(ShopModel, on_delete=models.CASCADE, related_name="videos")
     video = models.FileField(upload_to="shops/videos/")
     order = models.PositiveIntegerField(default=0)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            try:
+                old_video = ShopVideoModel.all_objects.get(pk=self.pk)
+                if old_video.video and old_video.video != self.video:
+                    delete_file(old_video.video)
+            except ShopVideoModel.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
 
     def delete(self, using=None, keep_parents=False):
         delete_file(self.video)

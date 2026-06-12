@@ -22,7 +22,11 @@ def index_product_to_elastic(self, product_id):
     except ProductModel.DoesNotExist:
         delete_product_from_elastic.delay(product_id)  # type: ignore
         return
-    if not product.is_active:
+    if (
+        not product.is_active
+        or product.shop.is_deleted
+        or (product.category is not None and product.category.is_deleted)
+    ):
         delete_product_from_elastic.delay(product_id)  # type: ignore
         return
     thumbnail = None
@@ -43,7 +47,7 @@ def index_product_to_elastic(self, product_id):
         "is_active": product.is_active,
         "shop_id": product.shop_id,  # type: ignore
         "shop_name": product.shop.name,
-        "category_id": product.category_id,  # type: ignore
+        "category_id": product.category_id if product.category else None,  # type: ignore
         "category_name": product.category.name if product.category else None,
         "thumbnail": thumbnail,
         "created_at": product.created_at.isoformat(),

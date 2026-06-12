@@ -58,6 +58,16 @@ class ProductImageModel(SoftDeleteModel):
     image = models.ImageField(upload_to="products/images/")
     order = models.PositiveIntegerField(default=0)
 
+    def save(self, *args, **kwargs):
+        if self.pk:
+            try:
+                old_image = ProductImageModel.all_objects.get(pk=self.pk)
+                if old_image.image and old_image.image != self.image:
+                    delete_file(old_image.image)
+            except ProductImageModel.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
+
     def delete(self, using=None, keep_parents=False):
         delete_file(self.image)
         super().delete(using=using, keep_parents=keep_parents)
@@ -75,6 +85,16 @@ class ProductVideoModel(SoftDeleteModel):
     )
     video = models.FileField(upload_to="products/videos/")
     order = models.PositiveIntegerField(default=0)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            try:
+                old_video = ProductVideoModel.all_objects.get(pk=self.pk)
+                if old_video.video and old_video.video != self.video:
+                    delete_file(old_video.video)
+            except ProductVideoModel.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
 
     def delete(self, using=None, keep_parents=False):
         delete_file(self.video)

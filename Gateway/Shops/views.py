@@ -1,6 +1,7 @@
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.db import transaction
 from Shops.serializers import ShopSerializer, ShopImageSerializer, ShopVideoSerializer
 from Shops.models import ShopModel, ShopImageModel, ShopVideoModel
 
@@ -12,7 +13,11 @@ class ShopView(APIView):
         user = request.user
         if id:
             try:
-                shop = ShopModel.objects.get(id=id, user=user, is_deleted=False)
+                shop = (
+                    ShopModel.objects.filter(id=id, user=user, is_deleted=False)
+                    .prefetch_related("images", "videos")
+                    .get()
+                )
             except ShopModel.DoesNotExist:
                 return Response(
                     {"detail": "Shop not found."},
@@ -20,15 +25,23 @@ class ShopView(APIView):
                 )
             serializer = self.serializer_class(shop)
             return Response(serializer.data, status=status.HTTP_200_OK)
-        shops = ShopModel.objects.filter(user=user, is_deleted=False)
+        shops = ShopModel.objects.filter(user=user, is_deleted=False).prefetch_related(
+            "images", "videos"
+        )
         serializer = self.serializer_class(shops, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
         user = request.user
+        if not user.is_seller:
+            return Response(
+                {"detail": "Only sellers can create shops."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(user=user)
+        with transaction.atomic():
+            serializer.save(user=user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def put(self, request, id):
@@ -42,7 +55,8 @@ class ShopView(APIView):
             )
         serializer = self.serializer_class(shop, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        with transaction.atomic():
+            serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def delete(self, request, id):

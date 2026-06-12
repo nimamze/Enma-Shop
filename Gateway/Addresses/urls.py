@@ -10,7 +10,6 @@ router = DefaultRouter()
 router.register(r"addresses", AddressViewSet, basename="address")
 
 urlpatterns = [
-    path("", include(router.urls)),
     path(
         "addresses/coordinates-to-text/",
         CoordinatesToTextView.as_view(),
@@ -21,4 +20,5 @@ urlpatterns = [
         TextToCoordinatesView.as_view(),
         name="text-to-coordinates",
     ),
+    path("", include(router.urls)),
 ]

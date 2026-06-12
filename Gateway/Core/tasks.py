@@ -26,6 +26,8 @@ def send_email_task(self, email_address, message):
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def send_sms(self, phone, message):
     try:
+        if not settings.SMS_API:
+            return
         params = {
             "sender": "2000660110",
             "receptor": f"{phone}",

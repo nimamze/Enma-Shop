@@ -42,6 +42,16 @@ class UserSignUpSerializer(serializers.Serializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    def validate_image(self, value):
+        if not value:
+            return value
+        content_type = getattr(value, "content_type", "")
+        if not content_type.startswith("image/"):
+            raise serializers.ValidationError("Only image files are allowed.")
+        if value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("Image size must be 5 MB or less.")
+        return value
+
     class Meta:
         model = User
         fields = ["id", "email", "first_name", "last_name", "image"]

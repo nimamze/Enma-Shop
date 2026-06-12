@@ -1,6 +1,9 @@
 from rest_framework import status
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.db import transaction
+from elasticsearch import ConnectionError as ElasticsearchConnectionError, TransportError
 from Shops.models import ShopModel
 from Products.models import (
     CategoryModel,
@@ -21,6 +24,11 @@ from Core.utils.elasticsearch.indexes import PRODUCTS_INDEX
 class CategoryView(APIView):
     serializer_class = CategorySerializer
 
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return super().get_permissions()
+        return [IsAdminUser()]
+
     def get(self, request, id=None):
         if id:
             try:
@@ -39,7 +47,8 @@ class CategoryView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        with transaction.atomic():
+            serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def put(self, request, id):
@@ -52,7 +61,8 @@ class CategoryView(APIView):
             )
         serializer = self.serializer_class(category, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        with transaction.atomic():
+            serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def delete(self, request, id):
@@ -74,10 +84,16 @@ class ProductView(APIView):
         user = request.user
         if id:
             try:
-                product = ProductModel.objects.get(
-                    id=id,
-                    shop__user=user,
-                    is_deleted=False,
+                product = (
+                    ProductModel.objects.filter(
+                        id=id,
+                        shop__user=user,
+                        shop__is_deleted=False,
+                        is_deleted=False,
+                    )
+                    .select_related("shop", "category")
+                    .prefetch_related("images", "videos")
+                    .get()
                 )
             except ProductModel.DoesNotExist:
                 return Response(
@@ -88,7 +104,9 @@ class ProductView(APIView):
             serializer = self.serializer_class(product)
             return Response(serializer.data, status=status.HTTP_200_OK)
         products = (
-            ProductModel.objects.filter(shop__user=user, is_deleted=False)
+            ProductModel.objects.filter(
+                shop__user=user, shop__is_deleted=False, is_deleted=False
+            )
             .select_related("shop", "category")
             .prefetch_related("images", "videos")
         )
@@ -97,6 +115,11 @@ class ProductView(APIView):
 
     def post(self, request):
         user = request.user
+        if not user.is_seller:
+            return Response(
+                {"detail": "Only sellers can create products."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         shop_id = request.data.get("shop")
         if not shop_id:
             return Response(
@@ -116,7 +139,8 @@ class ProductView(APIView):
             )
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(shop=shop)
+        with transaction.atomic():
+            serializer.save(shop=shop)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def put(self, request, id):
@@ -125,6 +149,7 @@ class ProductView(APIView):
             product = ProductModel.objects.get(
                 id=id,
                 shop__user=user,
+                shop__is_deleted=False,
                 is_deleted=False,
             )
         except ProductModel.DoesNotExist:
@@ -134,7 +159,8 @@ class ProductView(APIView):
             )
         serializer = self.serializer_class(product, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        with transaction.atomic():
+            serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def delete(self, request, id):
@@ -143,6 +169,7 @@ class ProductView(APIView):
             product = ProductModel.objects.get(
                 id=id,
                 shop__user=user,
+                shop__is_deleted=False,
                 is_deleted=False,
             )
         except ProductModel.DoesNotExist:
@@ -163,6 +190,7 @@ class ProductImageView(APIView):
             product = ProductModel.objects.get(
                 id=product_id,
                 shop__user=user,
+                shop__is_deleted=False,
                 is_deleted=False,
             )
         except ProductModel.DoesNotExist:
@@ -202,6 +230,7 @@ class ProductVideoView(APIView):
             product = ProductModel.objects.get(
                 id=product_id,
                 shop__user=user,
+                shop__is_deleted=False,
                 is_deleted=False,
             )
         except ProductModel.DoesNotExist:
@@ -233,6 +262,20 @@ class ProductVideoView(APIView):
 
 
 class ProductSearchView(APIView):
+    @staticmethod
+    def parse_int_param(value, default=None, minimum=None, maximum=None):
+        if value in (None, ""):
+            return default
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Invalid integer parameter.") from exc
+        if minimum is not None and parsed < minimum:
+            parsed = minimum
+        if maximum is not None and parsed > maximum:
+            parsed = maximum
+        return parsed
+
     def get(self, request):
         q = request.query_params.get("q")
         min_price = request.query_params.get("min_price")
@@ -240,14 +283,25 @@ class ProductSearchView(APIView):
         category_id = request.query_params.get("category")
         shop_id = request.query_params.get("shop")
         in_stock = request.query_params.get("in_stock")
-        page = int(request.query_params.get("page", 1))
-        page_size = int(request.query_params.get("page_size", 20))
-        if page < 1:
-            page = 1
-        if page_size < 1:
-            page_size = 20
-        if page_size > 100:
-            page_size = 100
+        try:
+            page = self.parse_int_param(
+                request.query_params.get("page", 1), default=1, minimum=1
+            )
+            page_size = self.parse_int_param(
+                request.query_params.get("page_size", 20),
+                default=20,
+                minimum=1,
+                maximum=100,
+            )
+            min_price_value = self.parse_int_param(min_price)
+            max_price_value = self.parse_int_param(max_price)
+            category_id_value = self.parse_int_param(category_id)
+            shop_id_value = self.parse_int_param(shop_id)
+        except ValueError:
+            return Response(
+                {"detail": "Invalid numeric query parameter."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         must = []
         filters = [
             {"term": {"is_active": True}},
@@ -270,30 +324,36 @@ class ProductSearchView(APIView):
         else:
             must.append({"match_all": {}})
         price_range = {}
-        if min_price:
-            price_range["gte"] = int(min_price)
-        if max_price:
-            price_range["lte"] = int(max_price)
+        if min_price_value is not None:
+            price_range["gte"] = min_price_value
+        if max_price_value is not None:
+            price_range["lte"] = max_price_value
         if price_range:
-            filters.append({"range": {"price": price_range}}) # type: ignore
-        if category_id:
-            filters.append({"term": {"category_id": int(category_id)}}) # type: ignore
-        if shop_id:
-            filters.append({"term": {"shop_id": int(shop_id)}}) # type: ignore
+            filters.append({"range": {"price": price_range}})  # type: ignore
+        if category_id_value is not None:
+            filters.append({"term": {"category_id": category_id_value}})  # type: ignore
+        if shop_id_value is not None:
+            filters.append({"term": {"shop_id": shop_id_value}})  # type: ignore
         if in_stock == "true":
-            filters.append({"range": {"stock": {"gt": 0}}}) # type: ignore
+            filters.append({"range": {"stock": {"gt": 0}}})  # type: ignore
         query = {"bool": {"must": must, "filter": filters}}
         from_ = (page - 1) * page_size
-        result = es.search(
-            index=PRODUCTS_INDEX,
-            query=query,
-            from_=from_,
-            size=page_size,
-            sort=[
-                {"_score": {"order": "desc"}},
-                {"created_at": {"order": "desc"}},
-            ],
-        )
+        try:
+            result = es.search(
+                index=PRODUCTS_INDEX,
+                query=query,
+                from_=from_,
+                size=page_size,
+                sort=[
+                    {"_score": {"order": "desc"}},
+                    {"created_at": {"order": "desc"}},
+                ],
+            )
+        except (ElasticsearchConnectionError, TransportError):
+            return Response(
+                {"detail": "Search service is temporarily unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         hits = result["hits"]["hits"]
         total = result["hits"]["total"]["value"]
         data = {

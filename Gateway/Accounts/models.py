@@ -59,6 +59,13 @@ class UserModel(SoftDeleteModel, AbstractUser):
 
     def save(self, *args, **kwargs):
         self.clean_phone()
+        if self.pk:
+            try:
+                old_user = UserModel.all_objects.get(pk=self.pk)
+                if old_user.image and old_user.image != self.image:
+                    delete_file(old_user.image)
+            except UserModel.DoesNotExist:
+                pass
         super().save(*args, **kwargs)
 
     def delete(self, using=None, keep_parents=False):

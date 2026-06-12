@@ -9,11 +9,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent  # -> Enma-Shop\Gateway
 
 load_dotenv(BASE_DIR / ".env")
 
-SECRET_KEY = "django-insecure-o(4r##ru5y@mz+!z842##!6-p*x2u93cob$mrfgefz2*)%pu=8"
+
+def get_list_env(name, default=""):
+    value = os.getenv(name, default)
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-dev-secret-key")
 
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = get_list_env("ALLOWED_HOSTS", "127.0.0.1,localhost")
 
 
 INSTALLED_APPS = [
@@ -108,6 +114,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
@@ -146,7 +153,7 @@ else:
     }
     MEDIA_URL = f"https://{custom_domain}/"
 
-AUTH_USER_MODEL = "Accounts.User"
+AUTH_USER_MODEL = "Accounts.UserModel"
 
 
 CACHES = {
@@ -225,10 +232,12 @@ SWAGGER_SETTINGS = {
 
 ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST")
 
-SMS_API = KavenegarAPI(os.getenv("KAVENEGAR_API_KEY"))
+KAVENEGAR_API_KEY = os.getenv("KAVENEGAR_API_KEY")
+SMS_API = KavenegarAPI(KAVENEGAR_API_KEY) if KAVENEGAR_API_KEY else None
 
 MAP_API_KEY = os.getenv("MAP_API_KEY")
 MAP_REVERSE_URL = "https://map.ir/reverse"
+MAP_FORWARD_URL = os.getenv("MAP_FORWARD_URL", "https://map.ir/search/v2")
 MAP_CACHE_TTL = int(os.getenv("MAP_CACHE_TTL", 60 * 60 * 24 * 7))
 
 USER_CHANGE_PASSWORD_TIME_LIMIT = os.getenv("USER_CHANGE_PASSWORD_TIME_LIMIT")

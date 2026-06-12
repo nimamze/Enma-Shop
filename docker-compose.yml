@@ -8,9 +8,9 @@ services:
     environment:
       POSTGRES_DB: enma_shop
       POSTGRES_USER: nimamze
-      POSTGRES_PASSWORD: emmawatson2181
+      POSTGRES_PASSWORD: local-dev-db-password
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - enma_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -23,13 +23,13 @@ services:
     image: redis:7-alpine
     container_name: enma-shop-redis
     restart: unless-stopped
-    command: ["redis-server", "--requirepass", "emmawatson2181"]
+    command: ["redis-server", "--requirepass", "local-dev-redis-password"]
     ports:
-      - "6380:6379"
+      - "127.0.0.1:6380:6379"
     volumes:
       - enma_redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "emmawatson2181", "ping"]
+      test: ["CMD", "redis-cli", "-a", "local-dev-redis-password", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,7 +43,7 @@ services:
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     ports:
-      - "9200:9200"
+      - "127.0.0.1:9200:9200"
     volumes:
       - enma_elasticsearch_data:/usr/share/elasticsearch/data
 
@@ -54,7 +54,7 @@ services:
     environment:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
     ports:
-      - "5601:5601"
+      - "127.0.0.1:5601:5601"
 
   gateway:
     build:
@@ -64,25 +64,42 @@ services:
     env_file:
       - ./Gateway/.env
     ports:
-      - "8018:8008"
+      - "127.0.0.1:8018:8008"
+    depends_on:
+      elasticsearch:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   celery-worker:
     build:
       context: ./Gateway
     container_name: enma-shop-celery-worker
     restart: unless-stopped
-    command: celery -A celery worker -l info
+    command: celery -A CentralManagement.celery_app worker -l info
     env_file:
       - ./Gateway/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   celery-beat:
     build:
       context: ./Gateway
     container_name: enma-shop-celery-beat
     restart: unless-stopped
-    command: celery -A celery beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: celery -A CentralManagement.celery_app beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file:
       - ./Gateway/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   enma_postgres_data:
