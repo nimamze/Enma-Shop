@@ -30,6 +30,7 @@ urlpatterns = [
     path("address/", include("Addresses.urls")),
     path("shops/", include("Shops.urls")),
     path("products/", include("Products.urls")),
+    path("orders/", include("Orders.urls")),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
