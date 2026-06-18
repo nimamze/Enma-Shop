@@ -58,11 +58,11 @@ services:
 
   gateway:
     build:
-      context: ./Gateway
+      context: ./Enma_Shop
     container_name: enma-shop-gateway
     restart: unless-stopped
     env_file:
-      - ./Gateway/.env
+      - ./Enma_Shop/.env
     ports:
       - "127.0.0.1:8018:8008"
     depends_on:
@@ -75,12 +75,12 @@ services:
 
   celery-worker:
     build:
-      context: ./Gateway
+      context: ./Enma_Shop
     container_name: enma-shop-celery-worker
     restart: unless-stopped
     command: celery -A CentralManagement.celery_app worker -l info
     env_file:
-      - ./Gateway/.env
+      - ./Enma_Shop/.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,12 +89,12 @@ services:
 
   celery-beat:
     build:
-      context: ./Gateway
+      context: ./Enma_Shop
     container_name: enma-shop-celery-beat
     restart: unless-stopped
     command: celery -A CentralManagement.celery_app beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file:
-      - ./Gateway/.env
+      - ./Enma_Shop/.env
     depends_on:
       postgres:
         condition: service_healthy

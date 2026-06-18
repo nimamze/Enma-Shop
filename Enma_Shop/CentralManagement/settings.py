@@ -5,7 +5,7 @@ import os
 from datetime import timedelta
 from kavenegar import KavenegarAPI
 
-BASE_DIR = Path(__file__).resolve().parent.parent  # -> Enma-Shop\Gateway
+BASE_DIR = Path(__file__).resolve().parent.parent  # -> Enma-Shop\Enma_Shop
 
 load_dotenv(BASE_DIR / ".env")
 
