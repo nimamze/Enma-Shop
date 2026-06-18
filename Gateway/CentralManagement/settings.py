@@ -15,7 +15,7 @@ def get_list_env(name, default=""):
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
-SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-dev-secret-key")
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "Addresses.apps.AddressesConfig",
     "Shops.apps.ShopsConfig",
     "Products.apps.ProductsConfig",
+    "Orders.apps.OrdersConfig",
     "storages",
     "django_celery_beat",
     "rest_framework_simplejwt.token_blacklist",
@@ -248,3 +249,18 @@ USER_OTP_CODE_LIMIT_TIME = os.getenv("USER_OTP_CODE_LIMIT_TIME")
 USER_OTP_CODE_LIMIT = os.getenv("USER_OTP_CODE_LIMIT")
 USER_OTP_CODE_TIME = os.getenv("USER_OTP_CODE_TIME")
 USER_ADDRESS_LIMIT = int(os.getenv("USER_ADDRESS_LIMIT", 3))
+
+ZARINPAL_MERCHANT_ID = os.getenv("ZARINPAL_MERCHANT_ID")
+ZARINPAL_SANDBOX = os.getenv("ZARINPAL_SANDBOX", "True").lower() == "true"
+ZARINPAL_CURRENCY = "IRT"
+ZARINPAL_CALLBACK_URL = os.getenv("ZARINPAL_CALLBACK_URL")
+ZARINPAL_TIMEOUT = 15
+
+if ZARINPAL_SANDBOX:
+    ZARINPAL_REQUEST_URL = "https://sandbox.zarinpal.com/pg/v4/payment/request.json"
+    ZARINPAL_VERIFY_URL = "https://sandbox.zarinpal.com/pg/v4/payment/verify.json"
+    ZARINPAL_STARTPAY_URL = "https://sandbox.zarinpal.com/pg/StartPay/"
+else:
+    ZARINPAL_REQUEST_URL = "https://api.zarinpal.com/pg/v4/payment/request.json"
+    ZARINPAL_VERIFY_URL = "https://api.zarinpal.com/pg/v4/payment/verify.json"
+    ZARINPAL_STARTPAY_URL = "https://www.zarinpal.com/pg/StartPay/"
