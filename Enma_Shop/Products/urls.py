@@ -3,6 +3,7 @@ from Products.views import (
     CategoryView,
     ProductView,
     ProductImageView,
+    PublicProductView,
     ProductVideoView,
     ProductSearchView,
 )
@@ -10,6 +11,8 @@ from Products.views import (
 urlpatterns = [
     path("categories/", CategoryView.as_view()),
     path("categories/<int:id>/", CategoryView.as_view()),
+    path("catalog/", PublicProductView.as_view()),
+    path("catalog/<int:id>/", PublicProductView.as_view()),
     path("", ProductView.as_view()),
     path("search/", ProductSearchView.as_view()),
     path("<int:id>/", ProductView.as_view()),

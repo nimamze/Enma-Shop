@@ -1,4 +1,5 @@
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -181,6 +182,35 @@ class ProductView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class PublicProductView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    serializer_class = ProductSerializer
+
+    def get(self, request, id=None):
+        queryset = (
+            ProductModel.objects.filter(
+                is_deleted=False,
+                is_active=True,
+                shop__is_deleted=False,
+            )
+            .select_related("shop", "category")
+            .prefetch_related("images", "videos")
+        )
+        if id:
+            try:
+                product = queryset.get(id=id)
+            except ProductModel.DoesNotExist:
+                return Response(
+                    {"detail": "Product not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            serializer = self.serializer_class(product)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class ProductImageView(APIView):
     serializer_class = ProductImageSerializer
 
@@ -262,6 +292,9 @@ class ProductVideoView(APIView):
 
 
 class ProductSearchView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
     @staticmethod
     def parse_int_param(value, default=None, minimum=None, maximum=None):
         if value in (None, ""):
@@ -337,7 +370,7 @@ class ProductSearchView(APIView):
         if in_stock == "true":
             filters.append({"range": {"stock": {"gt": 0}}})  # type: ignore
         query = {"bool": {"must": must, "filter": filters}}
-        from_ = (page - 1) * page_size
+        from_ = (page - 1) * page_size # type: ignore
         try:
             result = es.search(
                 index=PRODUCTS_INDEX,
