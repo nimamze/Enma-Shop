@@ -57,7 +57,6 @@ class OrderModel(SoftDeleteModel):
         PENDING_VERIFICATION = "pending_verification", "Pending verification"
         PAID = "paid", "Paid"
         FAILED = "failed", "Failed"
-        REFUNDED = "refunded", "Refunded"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orders")
     address = models.ForeignKey(
@@ -208,3 +207,31 @@ class OrderItemModel(SoftDeleteModel):
 
     def __str__(self):
         return f"{self.product_name} x {self.quantity} for order {self.order_id}"  # type: ignore
+
+
+class OrderAuditLogModel(BaseModel):
+    order = models.ForeignKey(
+        OrderModel,
+        on_delete=models.CASCADE,
+        related_name="audit_logs",
+    )
+    actor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="order_audit_logs",
+    )
+    action = models.CharField(max_length=64)
+    note = models.TextField(blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["order", "-created_at"]),
+            models.Index(fields=["action"]),
+        ]
+
+    def __str__(self):
+        return f"{self.action} for {self.order.order_number}"
