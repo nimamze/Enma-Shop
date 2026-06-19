@@ -70,42 +70,91 @@ def create_order_audit_log(order, action, *, actor=None, note="", payload=None):
 
 
 def build_order_notification_message(order, event, status_label=None):
+    if event == "created":
+        return (
+            f"Enma Shop\nYour order {order.order_number} has been created successfully "
+            f"and is waiting for payment."
+        )
     if event == "paid":
         return (
             f"Enma Shop\nOrder {order.order_number} was paid successfully. "
             f"Amount: {order.payable_amount}"
         )
-    if event == "status_changed":
+    if event == "processing":
         return (
-            f"Enma Shop\nOrder {order.order_number} status changed to "
-            f"{status_label or order.get_status_display()}."
+            f"Enma Shop\nYour order {order.order_number} is now being prepared by the seller."
         )
-    return f"Enma Shop\nOrder {order.order_number} has been updated."
+    if event == "shipped":
+        return f"Enma Shop\nYour order {order.order_number} has been shipped."
+    if event == "delivered":
+        return f"Enma Shop\nYour order {order.order_number} has been marked as delivered."
+    if event == "cancelled":
+        return f"Enma Shop\nYour order {order.order_number} has been cancelled."
+    return (
+        f"Enma Shop\nOrder {order.order_number} status changed to "
+        f"{status_label or order.get_status_display()}."
+    )
+
+
+def get_order_sellers(order):
+    seller_users = []
+    seen_seller_ids = set()
+    for item in order.items.filter(is_deleted=False).select_related("shop__user"):
+        if item.shop and item.shop.user_id not in seen_seller_ids:
+            seen_seller_ids.add(item.shop.user_id)
+            seller_users.append(item.shop.user)
+    return seller_users
 
 
 def notify_order_parties(order, event):
     status_label = order.get_status_display()
     message = build_order_notification_message(order, event, status_label=status_label)
+    buyer_phone = order.receiver_phone or order.user.phone
     buyer_email = order.user.email
+    seller_users = get_order_sellers(order)
+
+    if event == "created":
+        if buyer_email:
+            send_email_task.delay(buyer_email, message)
+        return
+
+    if event == "paid":
+        if buyer_email:
+            send_email_task.delay(buyer_email, message)
+        send_sms.delay(buyer_phone, message)
+        for seller in seller_users:
+            seller_message = (
+                f"Enma Shop\nA paid order {order.order_number} requires your attention."
+            )
+            if seller.email:
+                send_email_task.delay(seller.email, seller_message)
+            send_sms.delay(seller.phone, seller_message)
+        return
+
+    if event == "processing":
+        if buyer_email:
+            send_email_task.delay(buyer_email, message)
+        return
+
+    if event == "shipped":
+        if buyer_email:
+            send_email_task.delay(buyer_email, message)
+        send_sms.delay(buyer_phone, message)
+        return
+
+    if event == "delivered":
+        if buyer_email:
+            send_email_task.delay(buyer_email, message)
+        return
+
+    if event == "cancelled":
+        if buyer_email:
+            send_email_task.delay(buyer_email, message)
+        send_sms.delay(buyer_phone, message)
+        return
+
     if buyer_email:
-        send_email_task.delay(
-            buyer_email,
-            message,
-        )
-    send_sms.delay(order.receiver_phone or order.user.phone, message)
-    seller_users = []
-    seen_seller_ids = set()
-    for item in (
-        order.items.filter(is_deleted=False)
-        .select_related("shop__user")
-    ):
-        if item.shop and item.shop.user_id not in seen_seller_ids:
-            seen_seller_ids.add(item.shop.user_id)
-            seller_users.append(item.shop.user)
-    for seller in seller_users:
-        if seller.email:
-            send_email_task.delay(seller.email, message)
-        send_sms.delay(seller.phone, message)
+        send_email_task.delay(buyer_email, message)
 
 
 def validate_single_shop_cart(cart_items):
@@ -335,6 +384,7 @@ class CheckoutView(APIView):
                 note="Order created from checkout.",
                 payload={"items_total": order.items_total},
             )
+            notify_order_parties(order, "created")
             cart.cart_items.all().delete()  # type: ignore
         try:
             payment_result = ZarinPalClient().request_payment(
@@ -576,6 +626,7 @@ class ZarinPalVerifyView(APIView):
                 "payment_cancelled",
                 note="User cancelled payment in gateway callback.",
             )
+            notify_order_parties(order, "cancelled")
             return Response(
                 {"detail": "Payment was cancelled or failed by the user."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -748,7 +799,7 @@ class SellerOrderStatusUpdateView(APIView):
             actor=request.user,
             note=f"Seller changed status to {next_status}.",
         )
-        notify_order_parties(order, "status_changed")
+        notify_order_parties(order, next_status)
         response_serializer = SellerOrderSerializer(
             order,
             context={"seller": request.user},
@@ -780,3 +831,5 @@ class OrderAuditLogView(APIView):
                 )
         serializer = OrderAuditLogSerializer(order.audit_logs.all(), many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
