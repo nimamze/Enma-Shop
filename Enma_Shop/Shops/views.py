@@ -1,9 +1,14 @@
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db import transaction
-from Shops.serializers import ShopSerializer, ShopImageSerializer, ShopVideoSerializer
-from Shops.models import ShopModel, ShopImageModel, ShopVideoModel
+from Shops.serializers import (
+    ShopImageSerializer,
+    ShopSerializer,
+    ShopVideoSerializer,
+)
+from Shops.models import ShopImageModel, ShopModel, ShopVideoModel
 
 
 class ShopView(APIView):
@@ -70,6 +75,29 @@ class ShopView(APIView):
             )
         shop.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PublicShopView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    serializer_class = ShopSerializer
+
+    def get(self, request, id=None):
+        queryset = ShopModel.objects.filter(is_deleted=False).prefetch_related(
+            "images", "videos"
+        )
+        if id:
+            try:
+                shop = queryset.get(id=id)
+            except ShopModel.DoesNotExist:
+                return Response(
+                    {"detail": "Shop not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            serializer = self.serializer_class(shop)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class ShopImageView(APIView):
