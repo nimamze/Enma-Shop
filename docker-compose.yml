@@ -1,62 +1,60 @@
 name: enma-shop
 
 services:
-  postgres:
+  enma-shop-postgres:
     image: postgres:16-alpine
     container_name: enma-shop-postgres
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: enma_shop
-      POSTGRES_USER: nimamze
-      POSTGRES_PASSWORD: local-dev-db-password
+    env_file:
+      - ./docker/env/postgres.env
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
       - enma_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nimamze -d enma_shop"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  redis:
+  enma-shop-redis:
     image: redis:7-alpine
     container_name: enma-shop-redis
     restart: unless-stopped
-    command: ["redis-server", "--requirepass", "local-dev-redis-password"]
+    env_file:
+      - ./docker/env/redis.env
+    command: ["sh", "-c", "exec redis-server --requirepass \"$${REDIS_PASSWORD}\""]
     ports:
       - "127.0.0.1:6380:6379"
     volumes:
       - enma_redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "local-dev-redis-password", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  elasticsearch:
+  enma-shop-elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.17.3
     container_name: enma-shop-elasticsearch
     restart: unless-stopped
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    env_file:
+      - ./docker/env/elasticsearch.env
     ports:
       - "127.0.0.1:9200:9200"
     volumes:
       - enma_elasticsearch_data:/usr/share/elasticsearch/data
 
-  kibana:
+  enma-shop-kibana:
     image: docker.elastic.co/kibana/kibana:8.17.3
     container_name: enma-shop-kibana
     restart: unless-stopped
-    environment:
-      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    env_file:
+      - ./docker/env/kibana.env
     ports:
       - "127.0.0.1:5601:5601"
 
-  gateway:
+  enma-shop-gateway:
     build:
       context: ./Enma_Shop
     container_name: enma-shop-gateway
@@ -65,15 +63,8 @@ services:
       - ./Enma_Shop/.env
     ports:
       - "127.0.0.1:8018:8008"
-    depends_on:
-      elasticsearch:
-        condition: service_started
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
-  celery-worker:
+  enma-shop-celery-worker:
     build:
       context: ./Enma_Shop
     container_name: enma-shop-celery-worker
@@ -81,13 +72,8 @@ services:
     command: celery -A CentralManagement.celery_app worker -l info
     env_file:
       - ./Enma_Shop/.env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
-  celery-beat:
+  enma-shop-celery-beat:
     build:
       context: ./Enma_Shop
     container_name: enma-shop-celery-beat
@@ -95,11 +81,6 @@ services:
     command: celery -A CentralManagement.celery_app beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file:
       - ./Enma_Shop/.env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
 volumes:
   enma_postgres_data:
