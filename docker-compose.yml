@@ -6,7 +6,7 @@ services:
     container_name: enma-shop-postgres
     restart: unless-stopped
     env_file:
-      - ./docker/env/postgres.env
+      - ./Enma_Shop/.env
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
@@ -22,7 +22,7 @@ services:
     container_name: enma-shop-redis
     restart: unless-stopped
     env_file:
-      - ./docker/env/redis.env
+      - ./Enma_Shop/.env
     command: ["sh", "-c", "exec redis-server --requirepass \"$${REDIS_PASSWORD}\""]
     ports:
       - "127.0.0.1:6380:6379"
@@ -39,7 +39,7 @@ services:
     container_name: enma-shop-elasticsearch
     restart: unless-stopped
     env_file:
-      - ./docker/env/elasticsearch.env
+      - ./Enma_Shop/.env
     ports:
       - "127.0.0.1:9200:9200"
     volumes:
@@ -50,7 +50,7 @@ services:
     container_name: enma-shop-kibana
     restart: unless-stopped
     env_file:
-      - ./docker/env/kibana.env
+      - ./Enma_Shop/.env
     ports:
       - "127.0.0.1:5601:5601"
 
